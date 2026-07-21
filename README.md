@@ -19,6 +19,10 @@
 </p>
 
 <p align="center">
+  <img src=".github/assets/tour.gif" width="280" alt="Acts product tour — home, schedule, confirm, assisted scheduling, equipment">
+</p>
+
+<p align="center">
   <img src=".github/assets/inicio.png" width="240" alt="Home — your upcoming schedule">
   <img src=".github/assets/escalas.png" width="240" alt="Schedule — the service rota with statuses">
   <img src=".github/assets/escala.png" width="240" alt="Event — confirm your slot and see team status">
