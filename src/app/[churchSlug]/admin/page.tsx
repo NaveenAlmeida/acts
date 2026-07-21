@@ -1,0 +1,214 @@
+import { redirect } from "next/navigation";
+import { getTenant } from "@/lib/tenant";
+import { createClient } from "@/lib/supabase/server";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { CreateMinistryForm } from "@/components/admin/create-ministry-form";
+import { DeleteChurchZone } from "@/components/admin/delete-church";
+import { EditChurchName } from "@/components/admin/edit-church-name";
+import { DepartmentsManager } from "@/components/admin/departments-manager";
+
+export default async function AdminPage({
+  params,
+}: {
+  params: Promise<{ churchSlug: string }>;
+}) {
+  const { churchSlug } = await params;
+  const tenant = await getTenant(churchSlug);
+  // admin e coordenador acessam; coordenador não vê nome/apagar da igreja
+  if (!tenant.isCoord) redirect(`/${churchSlug}`);
+  const isAdmin = tenant.role === "admin";
+
+  const supabase = await createClient();
+  const cid = tenant.church.id;
+  const [
+    { data: ministries },
+    { data: counts },
+    { data: departments },
+    { data: interesses },
+    { data: aptas },
+  ] = await Promise.all([
+    supabase
+      .from("ministries")
+      .select("id, name, slug")
+      .eq("church_id", cid)
+      .order("name"),
+    supabase
+      .from("ministry_members")
+      .select("ministry_id")
+      .eq("church_id", cid)
+      .eq("active", true),
+    supabase.from("departments").select("id, name").eq("church_id", cid).order("name"),
+    supabase
+      .from("member_interests")
+      .select("user_id, skill_id, skills!inner(name), profiles!inner(full_name)")
+      .eq("church_id", cid),
+    supabase
+      .from("member_skills")
+      .select("user_id, skill_id")
+      .eq("church_id", cid)
+      .not("approved_by", "is", null),
+  ]);
+
+  const countByMinistry = new Map<string, number>();
+  for (const c of counts ?? []) {
+    countByMinistry.set(
+      c.ministry_id,
+      (countByMinistry.get(c.ministry_id) ?? 0) + 1
+    );
+  }
+
+  // "Quem quer crescer": interesse SEM a aptidão aprovada = candidato a treino.
+  // Agrupado por aptidão, para montar uma turma.
+  const jaApto = new Set((aptas ?? []).map((a) => `${a.user_id}:${a.skill_id}`));
+  const gapPorSkill = new Map<string, string[]>();
+  for (const i of interesses ?? []) {
+    if (jaApto.has(`${i.user_id}:${i.skill_id}`)) continue;
+    const skill = (i.skills as unknown as { name: string }).name;
+    const nome = (i.profiles as unknown as { full_name: string }).full_name;
+    gapPorSkill.set(skill, [...(gapPorSkill.get(skill) ?? []), nome]);
+  }
+  const querCrescer = [...gapPorSkill.entries()].sort(
+    (a, b) => b[1].length - a[1].length
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Administração
+        </h1>
+        <p className="text-muted-foreground">{tenant.church.name}</p>
+      </div>
+
+      {isAdmin && (
+        <Card className="rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-base">Nome da igreja</CardTitle>
+            <CardDescription>
+              Como o sistema aparece para a sua equipe
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EditChurchName
+              churchSlug={churchSlug}
+              churchId={tenant.church.id}
+              currentName={tenant.church.name}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">Código de convite</CardTitle>
+          <CardDescription>
+            Novos membros entram na igreja com este código
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="rounded-xl bg-muted px-4 py-3 text-center font-mono text-lg tracking-widest">
+            {tenant.church.invite_code}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">Quem quer crescer</CardTitle>
+          <CardDescription>
+            Pessoas que têm interesse numa área mas ainda não são aptas —
+            candidatas a treinamento.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {querCrescer.length > 0 ? (
+            <div className="space-y-3">
+              {querCrescer.map(([skill, nomes]) => (
+                <div key={skill} className="rounded-2xl border px-4 py-3">
+                  <p className="font-medium">
+                    {skill}{" "}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      · {nomes.length}{" "}
+                      {nomes.length === 1 ? "interessado" : "interessados"}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {nomes.join(", ")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Ninguém com interesse pendente de capacitação por enquanto.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">Departamentos</CardTitle>
+          <CardDescription>
+            Para qual público é o evento (Jovens, Irmãs, Crianças…). Você escolhe
+            o departamento ao montar cada escala.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DepartmentsManager
+            churchSlug={churchSlug}
+            churchId={tenant.church.id}
+            departments={departments ?? []}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">Ministérios</CardTitle>
+          <CardDescription>
+            Crie os ministérios da igreja e gerencie papéis na página de cada
+            pessoa
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <CreateMinistryForm
+            churchSlug={churchSlug}
+            churchId={tenant.church.id}
+          />
+          <div className="space-y-2">
+            {(ministries ?? []).map((m) => (
+              <div
+                key={m.id}
+                className="flex items-center justify-between rounded-2xl border px-4 py-3"
+              >
+                <p className="font-medium">{m.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {countByMinistry.get(m.id) ?? 0} membros
+                </p>
+              </div>
+            ))}
+            {(ministries ?? []).length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Nenhum ministério ainda — crie o primeiro acima.
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {isAdmin && (
+        <DeleteChurchZone
+          churchId={tenant.church.id}
+          churchName={tenant.church.name}
+        />
+      )}
+    </div>
+  );
+}

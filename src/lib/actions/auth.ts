@@ -1,0 +1,95 @@
+"use server";
+
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import type { ActionResult } from "./types";
+
+const credentialsSchema = z.object({
+  email: z.string().email("E-mail inválido"),
+  password: z.string().min(8, "Senha precisa de pelo menos 8 caracteres"),
+});
+
+const signUpSchema = credentialsSchema.extend({
+  fullName: z.string().min(2, "Informe seu nome").max(80),
+});
+
+export async function signIn(formData: FormData): Promise<ActionResult> {
+  const parsed = credentialsSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error) {
+    return { ok: false, error: "E-mail ou senha incorretos" };
+  }
+  redirect("/");
+}
+
+export async function signUp(formData: FormData): Promise<ActionResult> {
+  const parsed = signUpSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+    fullName: formData.get("fullName"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signUp({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    options: { data: { full_name: parsed.data.fullName } },
+  });
+  if (error) {
+    return { ok: false, error: "Não foi possível criar a conta" };
+  }
+  redirect("/");
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect("/login");
+}
+
+const emailSchema = z.object({
+  email: z.string().email("E-mail inválido"),
+});
+
+/**
+ * Envia o link de redefinição de senha. Responde sempre com sucesso,
+ * mesmo se o e-mail não existir — revelar isso permitiria enumerar
+ * contas cadastradas.
+ */
+export async function requestPasswordReset(
+  formData: FormData
+): Promise<ActionResult> {
+  const parsed = emailSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0].message };
+  }
+
+  const h = await headers();
+  const host = h.get("host");
+  const origin =
+    h.get("origin") ?? (host ? `https://${host}` : "");
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    { redirectTo: `${origin}/redefinir-senha` }
+  );
+  if (error) {
+    // logado no servidor, mas não exposto ao usuário (anti-enumeração)
+    console.error("requestPasswordReset:", error);
+  }
+  return { ok: true, data: undefined };
+}
