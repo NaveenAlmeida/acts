@@ -1,7 +1,3 @@
-<p align="center">
-  <img src=".github/assets/banner.svg" alt="Acts — church management, built for the people who serve" width="100%">
-</p>
-
 <h1 align="center">Acts</h1>
 
 <p align="center">
@@ -23,10 +19,16 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/login.svg" alt="Acts login screen" width="270">
-  &nbsp;&nbsp;
-  <img src=".github/assets/donation.svg" alt="Acts donation / support screen" width="270">
+  <img src=".github/assets/inicio.png" width="240" alt="Home — your upcoming schedule">
+  <img src=".github/assets/escalas.png" width="240" alt="Schedule — the service rota with statuses">
+  <img src=".github/assets/escala.png" width="240" alt="Event — confirm your slot and see team status">
 </p>
+<p align="center">
+  <img src=".github/assets/escalacao.png" width="240" alt="Assisted scheduling — who wants to grow">
+  <img src=".github/assets/equipamentos.png" width="240" alt="Equipment — inventory and status">
+  <img src=".github/assets/equipe.png" width="240" alt="Team — roles and skills">
+</p>
+<p align="center"><sub>Real in-app screenshots · Telas reais do app — mobile-first PWA</sub></p>
 
 ---
 
