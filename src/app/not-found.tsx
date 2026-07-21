@@ -13,6 +13,7 @@ export default function NotFound() {
           </p>
           <Button
             className="h-12 w-full rounded-full text-base"
+            nativeButton={false}
             render={<Link href="/" />}
           >
             Voltar ao início

@@ -85,6 +85,7 @@ export default async function EquipamentosPage({
         </div>
         <Button
           className="h-11 rounded-full px-5"
+          nativeButton={false}
           render={<Link href={`/${churchSlug}/equipamentos/novo`} />}
         >
           <Plus className="size-4" />

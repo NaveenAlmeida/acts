@@ -93,6 +93,7 @@ export default async function EquipamentoDetailPage({
             <Button
               variant="outline"
               className="h-10 rounded-full px-4"
+              nativeButton={false}
               render={
                 <Link href={`/${churchSlug}/equipamentos/${id}/editar`} />
               }
@@ -104,6 +105,7 @@ export default async function EquipamentoDetailPage({
               <Button
                 variant="outline"
                 className="h-10 rounded-full px-4"
+                nativeButton={false}
                 render={
                   <Link
                     href={`/${churchSlug}/manutencoes/novo?equipamento=${id}`}

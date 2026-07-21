@@ -47,9 +47,12 @@ export default async function PessoasPage({
   ]);
   if (membersError) console.error("pessoas:", membersError);
 
+  // Um papel pode se repetir entre setores (ex.: líder na Mídia E no Louvor).
+  // Sem dedupe, o mesmo rótulo aparece duas vezes e colide como key no React.
   const rolesByUser = new Map<string, string[]>();
   for (const r of roles ?? []) {
-    rolesByUser.set(r.user_id, [...(rolesByUser.get(r.user_id) ?? []), r.role]);
+    const atuais = rolesByUser.get(r.user_id) ?? [];
+    if (!atuais.includes(r.role)) rolesByUser.set(r.user_id, [...atuais, r.role]);
   }
   const skillCount = new Map<string, number>();
   for (const s of skills ?? []) {

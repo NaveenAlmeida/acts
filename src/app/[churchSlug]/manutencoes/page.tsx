@@ -82,6 +82,7 @@ export default async function ManutencoesPage({
         {tenant.isLeader && (
           <Button
             className="h-11 rounded-full px-5"
+            nativeButton={false}
             render={<Link href={`/${churchSlug}/manutencoes/novo`} />}
           >
             <Plus className="size-4" />

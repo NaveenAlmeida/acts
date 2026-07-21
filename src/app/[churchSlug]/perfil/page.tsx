@@ -35,12 +35,15 @@ export default async function PerfilPage({
     .join("")
     .toUpperCase();
 
-  // papéis: o de igreja + os de ministério (sem duplicar "voluntário" genérico)
+  // papéis: o de igreja + os de ministério (sem duplicar "voluntário" genérico).
+  // Set: o mesmo papel pode vir de vários setores (líder na Mídia E no Louvor).
   const roleBadges = [
-    CHURCH_ROLE_LABEL[tenant.role] ?? "Membro",
-    ...tenant.ministryRoles
-      .filter((r) => r !== "voluntario")
-      .map((r) => MINISTRY_ROLE_LABEL[r]),
+    ...new Set([
+      CHURCH_ROLE_LABEL[tenant.role] ?? "Membro",
+      ...tenant.ministryRoles
+        .filter((r) => r !== "voluntario")
+        .map((r) => MINISTRY_ROLE_LABEL[r]),
+    ]),
   ];
 
   return (

@@ -66,6 +66,13 @@ each ministry as a branch of the same system.
 - **Assets / equipment** — inventory, usage history, maintenance and tickets.
 - **People & ministries** — profiles, roles, skills and departments.
 - **Post-service reviews** — structured feedback by criteria.
+- **Children's ministry check-in** — child records with recorded parental consent,
+  age-based classes, allergies surfaced where volunteers need them, and pickup
+  restricted to **authorized guardians** — enforced by a database trigger, with
+  exceptions requiring a leader and a logged justification.
+- **Ministry scoping** — each ministry is a walled space (schedules, equipment,
+  reviews). A service is one shared event; each ministry builds its own rota.
+  Church coordinators get the consolidated view.
 - **Multi-church (multi-tenant)** — per-church isolation enforced by Row Level Security.
 - **PWA** — installs to the home screen, works like a native app on the phone.
 
@@ -152,6 +159,13 @@ voluntário aparecer**.
 - **Aptidões, interesses e treinamento** — cruza *quem quer* servir com *quem já é apto*,
   gerando a fila de **"quem quer crescer"**.
 - **Patrimônio / equipamentos** — inventário, histórico, manutenções e chamados.
+- **Infantil (check-in)** — ficha da criança com consentimento registrado, turmas
+  por faixa etária, alergia em destaque para o voluntário, e **retirada só por
+  responsável autorizado** — bloqueada no banco; exceção exige liderança e
+  justificativa gravada.
+- **Escopo por setor** — cada ministério é um espaço isolado (escala, equipamentos,
+  avaliações). O culto é um evento compartilhado e cada setor monta a sua escala;
+  a coordenação enxerga o todo.
 - **Pessoas & ministérios**, **avaliações pós-culto**, **multi-igreja** (isolamento por RLS),
   e **PWA** (instala na tela inicial).
 

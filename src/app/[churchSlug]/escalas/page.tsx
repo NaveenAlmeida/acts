@@ -69,6 +69,7 @@ export default async function EscalasPage({
         {tenant.isLeader && (
           <Button
             className="h-11 rounded-full px-5"
+            nativeButton={false}
             render={<Link href={`/${churchSlug}/escalas/novo`} />}
           >
             <Plus className="size-4" />

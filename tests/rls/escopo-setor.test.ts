@@ -35,6 +35,7 @@ describe("Escopo por setor — isolamento (migrations 20/21)", () => {
   let midiaLider: SupabaseClient;
   let louvorLider: SupabaseClient;
   let midiaVol: SupabaseClient;
+  let midiaVol2: SupabaseClient; // colega do MESMO setor (privacidade de avaliação)
   let louvorVol: SupabaseClient;
   let churchId: string;
   let midiaId: string;
@@ -49,6 +50,7 @@ describe("Escopo por setor — isolamento (migrations 20/21)", () => {
     midiaLider = await newUser(`ml-${run}@teste.dev`);
     louvorLider = await newUser(`ll-${run}@teste.dev`);
     midiaVol = await newUser(`mv-${run}@teste.dev`);
+    midiaVol2 = await newUser(`mv2-${run}@teste.dev`);
     louvorVol = await newUser(`lv-${run}@teste.dev`);
 
     churchId = (
@@ -79,13 +81,14 @@ describe("Escopo por setor — isolamento (migrations 20/21)", () => {
     const invite = (
       await coord.from("churches").select("invite_code").eq("id", churchId).single()
     ).data!.invite_code;
-    for (const c of [midiaLider, louvorLider, midiaVol, louvorVol]) {
+    for (const c of [midiaLider, louvorLider, midiaVol, midiaVol2, louvorVol]) {
       await c.rpc("join_church", { p_invite_code: invite });
     }
     await admin.from("ministry_members").insert([
       { ministry_id: midiaId, church_id: churchId, user_id: await uid(midiaLider), role: "lider" },
       { ministry_id: louvorId, church_id: churchId, user_id: await uid(louvorLider), role: "lider" },
       { ministry_id: midiaId, church_id: churchId, user_id: await uid(midiaVol), role: "voluntario" },
+      { ministry_id: midiaId, church_id: churchId, user_id: await uid(midiaVol2), role: "voluntario" },
       { ministry_id: louvorId, church_id: churchId, user_id: await uid(louvorVol), role: "voluntario" },
     ]);
 
@@ -180,6 +183,47 @@ describe("Escopo por setor — isolamento (migrations 20/21)", () => {
       .eq("id", asgMidia)
       .single();
     expect(data!.role_name).toBe("Câmera"); // inalterado
+  });
+
+  // Avaliação é feedback de desempenho: só a própria pessoa, a liderança do setor
+  // e o coordenador podem ler. Um COLEGA do mesmo setor não pode.
+  it("colega do mesmo setor NÃO lê a avaliação de outro voluntário", async () => {
+    const alvo = await uid(midiaVol);
+    const ins = await midiaLider.from("evaluations").insert({
+      church_id: churchId,
+      assignment_id: asgMidia,
+      event_id: eventId,
+      user_id: alvo,
+      pontualidade: 5,
+      organizacao: 5,
+      conhecimento: 5,
+      comunicacao: 5,
+      trabalho_equipe: 5,
+      comprometimento: 5,
+      notes: "feedback reservado",
+    });
+    expect(ins.error).toBeNull();
+
+    // o colega do mesmo setor não pode ver
+    const { data: colega } = await midiaVol2
+      .from("evaluations")
+      .select("id, notes")
+      .eq("assignment_id", asgMidia);
+    expect(colega ?? []).toEqual([]);
+
+    // a própria pessoa vê
+    const { data: propria } = await midiaVol
+      .from("evaluations")
+      .select("id")
+      .eq("assignment_id", asgMidia);
+    expect((propria ?? []).length).toBe(1);
+
+    // a liderança do setor vê
+    const { data: lider } = await midiaLider
+      .from("evaluations")
+      .select("id")
+      .eq("assignment_id", asgMidia);
+    expect((lider ?? []).length).toBe(1);
   });
 
   it("equipamento do setor é isolado; compartilhado (null) é visível a todos", async () => {

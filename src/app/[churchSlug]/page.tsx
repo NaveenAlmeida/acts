@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
+  Baby,
   BarChart3,
   BookOpen,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
+import { getActiveMinistry } from "@/lib/ministry";
 import { checkPlatformAdmin } from "@/lib/platform";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -35,6 +37,11 @@ export default async function HomePage({
   const { churchSlug } = await params;
   const tenant = await getTenant(churchSlug);
   const isPlatformAdmin = await checkPlatformAdmin();
+  // o link do Infantil só aparece para quem tem acesso ao setor
+  const { options: meusSetores } = await getActiveMinistry(churchSlug);
+  const temInfantil = meusSetores.some(
+    (m) => m.slug === "infantil" || /infantil/i.test(m.name)
+  );
 
   const supabase = await createClient();
   const { data: myEscalas } = await supabase
@@ -50,7 +57,8 @@ export default async function HomePage({
   const upcomingCount = escalas.length;
   const isAdmin = tenant.role === "admin";
   const canAdmin = tenant.isCoord;
-  const showManage = canAdmin || tenant.isLeader;
+  // voluntário do Infantil também precisa do acesso (é quem faz o check-in)
+  const showManage = canAdmin || tenant.isLeader || temInfantil;
 
   return (
     <div className="flex flex-col gap-9 pt-2">
@@ -175,6 +183,14 @@ export default async function HomePage({
                   icon={<BarChart3 className="size-5" />}
                   title="Distribuição de escalas"
                   description="Quem está sobrecarregado ou de fora"
+                />
+              )}
+              {temInfantil && (
+                <NavRow
+                  href={`/${churchSlug}/infantil`}
+                  icon={<Baby className="size-5" />}
+                  title="Infantil"
+                  description="Cadastro, check-in e retirada das crianças"
                 />
               )}
               {canAdmin && (
