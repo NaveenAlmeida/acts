@@ -39,6 +39,7 @@ export type AssignmentRow = {
 export function AssignmentManager({
   churchSlug,
   churchId,
+  ministryId,
   eventId,
   assignments,
   members,
@@ -46,6 +47,7 @@ export function AssignmentManager({
 }: {
   churchSlug: string;
   churchId: string;
+  ministryId: string;
   eventId: string;
   assignments: AssignmentRow[];
   members: Member[];
@@ -66,7 +68,7 @@ export function AssignmentManager({
     if (!userId) return toast.error("Escolha a pessoa");
     if (roleName.length < 2) return toast.error("Informe a função (ex.: Fotógrafo)");
     act(() =>
-      addAssignment({ churchSlug, churchId, eventId, userId, roleName })
+      addAssignment({ churchSlug, churchId, ministryId, eventId, userId, roleName })
     );
     setUserId("");
     setRoleName("");

@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PushToggle } from "@/components/push/push-toggle";
 
 const CHURCH_ROLE_LABEL: Record<string, string> = {
   admin: "Administrador",
@@ -65,6 +66,12 @@ export default async function PerfilPage({
               ))}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardContent className="py-4">
+          <PushToggle churchId={tenant.church.id} />
         </CardContent>
       </Card>
 

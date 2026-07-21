@@ -1,8 +1,10 @@
 import { getTenant } from "@/lib/tenant";
+import { getActiveMinistry } from "@/lib/ministry";
 import { createClient } from "@/lib/supabase/server";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNav } from "@/components/shell/bottom-nav";
 import { Sidebar } from "@/components/shell/sidebar";
+import { SectorSwitcher } from "@/components/shell/sector-switcher";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { SessionKeeper } from "@/components/shell/session-keeper";
 
@@ -15,6 +17,7 @@ export default async function TenantLayout({
 }) {
   const { churchSlug } = await params;
   const tenant = await getTenant(churchSlug);
+  const { active, options } = await getActiveMinistry(churchSlug);
 
   // escalas aguardando confirmação (status 'convidado', evento futuro) —
   // alimenta o aviso in-app (badge no ícone Escalas)
@@ -66,7 +69,14 @@ export default async function TenantLayout({
                 {tenant.profile.full_name}
               </p>
             </div>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              {active && (
+                <SectorSwitcher
+                  churchSlug={churchSlug}
+                  activeId={active.id}
+                  options={options}
+                />
+              )}
               <ThemeToggle />
             </div>
           </div>

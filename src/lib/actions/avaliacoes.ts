@@ -35,11 +35,20 @@ export async function submitEvaluation(raw: unknown): Promise<ActionResult> {
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Não autenticado" };
 
+  // a avaliação herda o setor da escala avaliada (a parede segue a escala)
+  const { data: asg } = await supabase
+    .from("assignments")
+    .select("ministry_id")
+    .eq("id", d.assignmentId)
+    .single();
+  if (!asg) return { ok: false, error: "Escala não encontrada" };
+
   const { data, error } = await supabase
     .from("evaluations")
     .upsert(
       {
         church_id: d.churchId,
+        ministry_id: asg.ministry_id,
         assignment_id: d.assignmentId,
         event_id: d.eventId,
         user_id: d.userId,

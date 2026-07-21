@@ -2,7 +2,7 @@
    Durante o desenvolvimento ativo, NÃO cacheamos HTML/CSS/JS: o app sempre
    busca do servidor (evita PWA travado em versão antiga no iPhone).
    Mantém apenas instalabilidade (PWA) + limpeza de caches antigos. */
-const CACHE = "acts-v1";
+const CACHE = "acts-v4";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -19,3 +19,41 @@ self.addEventListener("activate", (event) => {
 
 // Sem interceptar fetch: o navegador vai direto à rede (assets do Next são
 // versionados por hash, então já ficam frescos automaticamente).
+
+// ---------- Web Push ----------
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { title: "Acts", body: event.data ? event.data.text() : "" };
+  }
+  const title = payload.title || "Acts";
+  const options = {
+    body: payload.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: payload.tag || undefined,
+    renotify: Boolean(payload.tag),
+    data: { url: payload.url || "/" },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((wins) => {
+        for (const win of wins) {
+          if ("focus" in win) {
+            win.navigate?.(url);
+            return win.focus();
+          }
+        }
+        return self.clients.openWindow ? self.clients.openWindow(url) : undefined;
+      })
+  );
+});

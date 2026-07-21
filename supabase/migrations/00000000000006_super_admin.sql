@@ -21,8 +21,7 @@ create table public.platform_admin_emails (
   created_at  timestamptz not null default now()
 );
 
--- E-mails do dono da plataforma (viram super-admin ao se cadastrar).
--- TROQUE pelos e-mails reais dos administradores da sua instância.
+-- E-mails do dono da plataforma (viram super-admin ao se cadastrar)
 insert into public.platform_admin_emails (email) values
   ('admin@suaigreja.exemplo'),
   ('admin2@suaigreja.exemplo')

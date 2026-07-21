@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   // Headers de segurança (defesa em profundidade).
   // Confirmado em produção (2026-07-19): o OpenNext/Cloudflare emite estes
-  // headers normalmente — verificado em produção (Cloudflare/OpenNext emite os headers).
+  // headers normalmente — verificado com curl -I no domínio de produção.
   async headers() {
     return [
       {

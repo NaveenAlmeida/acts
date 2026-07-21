@@ -1,11 +1,19 @@
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
+import { getActiveMinistry } from "@/lib/ministry";
 import { createClient } from "@/lib/supabase/server";
-import { formatEventDate, formatEventTime } from "@/lib/escalas";
+import {
+  ASSIGNMENT_STATUS_BADGE,
+  ASSIGNMENT_STATUS_LABELS,
+  formatEventDate,
+  formatEventTime,
+} from "@/lib/escalas";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -26,6 +34,10 @@ export default async function EventoDetailPage({
 }) {
   const { churchSlug, id } = await params;
   const tenant = await getTenant(churchSlug);
+  const { active } = await getActiveMinistry(churchSlug);
+  const canManage = active?.canManage ?? false;
+  // sem setor ativo (caso raro): não escala nada
+  const activeMinistryId = active?.id ?? "00000000-0000-0000-0000-000000000000";
 
   const supabase = await createClient();
   const [{ data: event }, { data: assignments }] = await Promise.all([
@@ -35,12 +47,14 @@ export default async function EventoDetailPage({
       .eq("id", id)
       .eq("church_id", tenant.church.id)
       .maybeSingle(),
+    // escala do SETOR ativo neste evento (a RLS já isola; filtramos p/ consistência)
     supabase
       .from("assignments")
       .select(
         "id, user_id, role_name, status, arrival_time, items_to_bring, profiles!assignments_user_id_fkey(full_name), leader:profiles!assignments_leader_id_fkey(full_name)"
       )
       .eq("event_id", id)
+      .eq("ministry_id", activeMinistryId)
       .order("created_at"),
   ]);
 
@@ -88,7 +102,7 @@ export default async function EventoDetailPage({
   }[] = [];
   let equipments: { id: string; name: string }[] = [];
   let evaluations = new Map<string, EvaluationValues>();
-  if (tenant.isLeader) {
+  if (canManage) {
     const { data: evals } = await supabase
       .from("evaluations")
       .select(
@@ -110,7 +124,7 @@ export default async function EventoDetailPage({
       ])
     );
   }
-  if (tenant.isLeader) {
+  if (canManage) {
     // janela do mês do evento (para a "carga do mês") e o dia do evento
     const dt = new Date(event.starts_at);
     const mesIni = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString();
@@ -127,14 +141,17 @@ export default async function EventoDetailPage({
       { data: ints },
     ] = await Promise.all([
       supabase
-        .from("church_members")
+        .from("ministry_members")
         .select("user_id, profiles!inner(full_name)")
         .eq("church_id", cid)
-        .eq("status", "active"),
+        .eq("ministry_id", activeMinistryId)
+        .eq("active", true),
+      // equipamentos do setor ativo + os compartilhados da igreja (ministry_id nulo)
       supabase
         .from("equipments")
         .select("id, name")
         .eq("church_id", cid)
+        .or(`ministry_id.eq.${activeMinistryId},ministry_id.is.null`)
         .in("status", ["disponivel", "em_uso"])
         .order("name"),
       supabase
@@ -184,6 +201,40 @@ export default async function EventoDetailPage({
       interesses: intBy.get(x.user_id) ?? [],
     }));
     equipments = eq ?? [];
+  }
+
+  // Visão consolidada da igreja: o coordenador/pastor vê as escalas dos OUTROS
+  // setores neste mesmo culto (a RLS já libera; aqui só consultamos).
+  let outrosSetores: {
+    ministry: string;
+    rows: { name: string; role: string; status: string }[];
+  }[] = [];
+  if (tenant.isCoord) {
+    const { data: others } = await supabase
+      .from("assignments")
+      .select(
+        "role_name, status, ministries!inner(name), profiles!assignments_user_id_fkey(full_name)"
+      )
+      .eq("event_id", id)
+      .neq("ministry_id", activeMinistryId)
+      .order("created_at");
+    const byMinistry = new Map<string, { name: string; role: string; status: string }[]>();
+    for (const a of others ?? []) {
+      const min = (a.ministries as unknown as { name: string }).name;
+      byMinistry.set(min, [
+        ...(byMinistry.get(min) ?? []),
+        {
+          name:
+            (a.profiles as unknown as { full_name: string } | null)?.full_name ??
+            "—",
+          role: a.role_name,
+          status: a.status,
+        },
+      ]);
+    }
+    outrosSetores = [...byMinistry.entries()]
+      .map(([ministry, rows]) => ({ ministry, rows }))
+      .sort((a, b) => a.ministry.localeCompare(b.ministry, "pt-BR"));
   }
 
   return (
@@ -268,10 +319,11 @@ export default async function EventoDetailPage({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {tenant.isLeader ? (
+          {canManage ? (
             <AssignmentManager
               churchSlug={churchSlug}
               churchId={tenant.church.id}
+              ministryId={activeMinistryId}
               eventId={id}
               assignments={rows}
               members={members}
@@ -298,7 +350,46 @@ export default async function EventoDetailPage({
         </CardContent>
       </Card>
 
-      {tenant.isLeader && rows.length > 0 && (
+      {outrosSetores.length > 0 && (
+        <Card className="rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-base">Outros setores neste culto</CardTitle>
+            <CardDescription>
+              Visão da igreja — quem serve nos demais setores
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {outrosSetores.map((s) => (
+              <div key={s.ministry} className="space-y-2">
+                <p className="text-sm font-semibold">
+                  {s.ministry}{" "}
+                  <span className="font-normal text-muted-foreground">
+                    · {s.rows.length}
+                  </span>
+                </p>
+                {s.rows.map((r, i) => (
+                  <div
+                    key={`${s.ministry}-${i}`}
+                    className="flex items-center justify-between gap-2 rounded-2xl border px-4 py-2.5 text-sm"
+                  >
+                    <span className="min-w-0 truncate">
+                      <span className="font-medium">{r.name}</span>{" "}
+                      <span className="text-muted-foreground">· {r.role}</span>
+                    </span>
+                    <Badge
+                      className={`shrink-0 rounded-full border-0 ${ASSIGNMENT_STATUS_BADGE[r.status]}`}
+                    >
+                      {ASSIGNMENT_STATUS_LABELS[r.status]}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && rows.length > 0 && (
         <Card className="rounded-3xl">
           <CardHeader>
             <CardTitle className="text-base">Avaliações</CardTitle>

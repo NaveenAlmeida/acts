@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { notifyUsers } from "@/lib/push/notify";
 import type { ActionResult } from "./types";
 
 const eventSchema = z.object({
@@ -61,6 +62,7 @@ export async function createEvent(raw: unknown): Promise<ActionResult> {
 const assignmentSchema = z.object({
   churchSlug: z.string().min(2),
   churchId: z.string().uuid(),
+  ministryId: z.string().uuid(),
   eventId: z.string().uuid(),
   userId: z.string().uuid(),
   roleName: z.string().min(2, "Informe a função").max(80),
@@ -82,6 +84,7 @@ export async function addAssignment(raw: unknown): Promise<ActionResult> {
 
   const { error } = await supabase.from("assignments").insert({
     church_id: d.churchId,
+    ministry_id: d.ministryId,
     event_id: d.eventId,
     user_id: d.userId,
     role_name: d.roleName,
@@ -98,6 +101,20 @@ export async function addAssignment(raw: unknown): Promise<ActionResult> {
           : "Sem permissão para escalar",
     };
   }
+
+  // avisa a pessoa escalada (best-effort — não bloqueia o retorno em caso de falha)
+  const { data: ev } = await supabase
+    .from("events")
+    .select("title")
+    .eq("id", d.eventId)
+    .single();
+  await notifyUsers([d.userId], {
+    title: "Você foi escalado 🙌",
+    body: `${d.roleName} · ${ev?.title ?? "Nova escala"}`,
+    url: `/${d.churchSlug}/escalas/${d.eventId}`,
+    tag: `assign-${d.eventId}`,
+  });
+
   revalidatePath(`/${d.churchSlug}/escalas/${d.eventId}`);
   return { ok: true, data: undefined };
 }
@@ -240,6 +257,25 @@ export async function requestSubstitution(raw: unknown): Promise<ActionResult> {
     console.error("requestSubstitution: falha ao atualizar status", statusError);
     return { ok: false, error: "Pedido registrado, mas o status não atualizou" };
   }
+
+  // avisa os líderes da igreja (admins/coordenadores) + quem escalou a pessoa
+  const [{ data: me }, { data: leaders }, { data: asg }, { data: ev }] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+    supabase
+      .from("church_members")
+      .select("user_id")
+      .eq("church_id", d.churchId)
+      .in("role", ["admin", "coordenador"]),
+    supabase.from("assignments").select("leader_id").eq("id", d.assignmentId).single(),
+    supabase.from("events").select("title").eq("id", d.eventId).single(),
+  ]);
+  const targets = [...(leaders ?? []).map((l) => l.user_id), asg?.leader_id];
+  await notifyUsers(targets, {
+    title: "Pedido de troca 🔄",
+    body: `${me?.full_name || "Um voluntário"} pediu substituição${ev?.title ? ` · ${ev.title}` : ""}`,
+    url: `/${d.churchSlug}/escalas/${d.eventId}`,
+    tag: `sub-${d.assignmentId}`,
+  });
 
   revalidatePath(`/${d.churchSlug}/escalas/${d.eventId}`);
   return { ok: true, data: undefined };

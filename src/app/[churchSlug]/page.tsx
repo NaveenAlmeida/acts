@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
+  BarChart3,
   BookOpen,
   ChevronRight,
   Settings,
@@ -166,6 +167,14 @@ export default async function HomePage({
                   icon={<Users className="size-5" />}
                   title="Equipe"
                   description="Perfis, aptidões e ministérios"
+                />
+              )}
+              {tenant.isLeader && (
+                <NavRow
+                  href={`/${churchSlug}/distribuicao`}
+                  icon={<BarChart3 className="size-5" />}
+                  title="Distribuição de escalas"
+                  description="Quem está sobrecarregado ou de fora"
                 />
               )}
               {canAdmin && (

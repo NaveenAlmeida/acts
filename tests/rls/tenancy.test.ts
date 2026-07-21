@@ -77,10 +77,11 @@ describe("isolamento multi-tenant (RLS)", () => {
   });
 
   it("admin cria ministério na própria igreja", async () => {
+    // create_church já cria o setor "midia"; usa outro slug para não colidir
     const { error } = await alice.from("ministries").insert({
       church_id: churchA,
-      name: "Mídia",
-      slug: "midia",
+      name: "Louvor",
+      slug: "louvor",
     });
     expect(error).toBeNull();
   });
