@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronRight } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -117,6 +119,20 @@ export default async function AdminPage({
           </p>
         </CardContent>
       </Card>
+
+      <Link href={`/${churchSlug}/assinatura`} className="block">
+        <Card className="rounded-3xl transition-colors hover:bg-accent/40">
+          <CardContent className="flex items-center justify-between gap-3 py-4">
+            <div>
+              <p className="font-medium">Assinatura</p>
+              <p className="text-sm text-muted-foreground">
+                Situação da igreja, como pagar e pedido de isenção
+              </p>
+            </div>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
 
       <Card className="rounded-3xl">
         <CardHeader>

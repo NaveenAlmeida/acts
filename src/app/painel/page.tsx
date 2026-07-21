@@ -3,6 +3,8 @@ import { Building2, Users, Package, Wrench } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatBRL } from "@/lib/equipamentos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BillingPanel } from "@/components/painel/billing-panel";
+import type { BillingStatus } from "@/lib/billing";
 import { NovaIgreja } from "@/components/painel/nova-igreja";
 
 const AUDIT_ACTION_LABELS: Record<string, string> = {
@@ -32,7 +34,9 @@ export default async function PainelPage() {
   ] = await Promise.all([
     supabase
       .from("churches")
-      .select("id, name, slug, invite_code, created_at")
+      .select(
+        "id, name, slug, invite_code, created_at, billing_status, paid_until"
+      )
       .order("created_at", { ascending: false }),
     supabase.from("church_members").select("church_id, user_id"),
     supabase.from("profiles").select("id"),
@@ -44,6 +48,14 @@ export default async function PainelPage() {
       .order("created_at", { ascending: false })
       .limit(15),
   ]);
+
+  // quem avisou que pagou nos últimos 45 dias (Pix é conferido à mão)
+  const desde = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: claims } = await supabase
+    .from("billing_claims")
+    .select("church_id")
+    .gte("created_at", desde);
+  const avisaram = new Set((claims ?? []).map((c) => c.church_id));
 
   const churchList = churches ?? [];
   const totalPatrimonio = (equipments ?? []).reduce(
@@ -139,6 +151,23 @@ export default async function PainelPage() {
               <NovaIgreja />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">Sustentação</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BillingPanel
+            churches={churchList.map((c) => ({
+              id: c.id,
+              name: c.name,
+              status: (c.billing_status ?? "trial") as BillingStatus,
+              paidUntil: c.paid_until ?? null,
+              avisouPagamento: avisaram.has(c.id),
+            }))}
+          />
         </CardContent>
       </Card>
 
