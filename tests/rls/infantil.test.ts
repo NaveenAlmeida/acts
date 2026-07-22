@@ -230,4 +230,78 @@ describe("Infantil — parede e retirada autorizada (migration 23)", () => {
     expect(data!.picked_up_by).toBe(maeId);
     expect(data!.override_reason).toBeNull(); // sem exceção: fluxo normal
   });
+
+  // Fase B — o anúncio precisa ATRAVESSAR a parede (a igreja toda vê o
+  // chamado) levando só o código; nunca o nome da criança.
+  it("anúncio mostra o código à igreja inteira, sem vazar a criança", async () => {
+    const { error: pErr } = await infLider.from("child_pages").insert({
+      church_id: churchId,
+      ministry_id: infantilId,
+      event_id: eventId,
+      checkin_id: checkinId,
+      kind: "chamar",
+    });
+    expect(pErr).toBeNull();
+
+    // membro de OUTRO setor vê o código pelo anúncio…
+    const { data: anuncio } = await midiaVol.rpc("anuncios_infantil", {
+      p_church: churchId,
+    });
+    expect((anuncio ?? []).length).toBeGreaterThan(0);
+    expect((anuncio ?? [])[0].code).toBe("042");
+
+    // …mas segue sem enxergar a chamada em si nem a criança
+    const { data: pages } = await midiaVol.from("child_pages").select("id");
+    expect(pages ?? []).toEqual([]);
+    const { data: kids } = await midiaVol.from("children").select("full_name");
+    expect(kids ?? []).toEqual([]);
+  });
+
+  it("anúncio não vaza para OUTRA igreja", async () => {
+    const forasteiro = await newUser(`fora-${run}@teste.dev`);
+    await forasteiro.rpc("create_church", {
+      p_name: "Igreja Alheia",
+      p_slug: `alheia-${run}`,
+    });
+    const { data } = await forasteiro.rpc("anuncios_infantil", {
+      p_church: churchId,
+    });
+    expect(data ?? []).toEqual([]);
+  });
+
+  it("retirada encerra a chamada pendente (o aviso para de piscar)", async () => {
+    const ev3 = (
+      await coord
+        .from("events")
+        .insert({ church_id: churchId, title: "Culto 3", starts_at: new Date().toISOString() })
+        .select("id")
+        .single()
+    ).data!.id;
+    const ci = (
+      await infVol
+        .from("child_checkins")
+        .insert({ church_id: churchId, ministry_id: infantilId, event_id: ev3, child_id: childId, code: "555" })
+        .select("id")
+        .single()
+    ).data!.id;
+    await infLider.from("child_pages").insert({
+      church_id: churchId,
+      ministry_id: infantilId,
+      event_id: ev3,
+      checkin_id: ci,
+      kind: "chamar",
+    });
+
+    await infVol
+      .from("child_checkins")
+      .update({ picked_up_by: maeId, checked_out_at: new Date().toISOString() })
+      .eq("id", ci);
+
+    const { data } = await admin
+      .from("child_pages")
+      .select("resolved_at")
+      .eq("checkin_id", ci)
+      .single();
+    expect(data!.resolved_at).not.toBeNull();
+  });
 });

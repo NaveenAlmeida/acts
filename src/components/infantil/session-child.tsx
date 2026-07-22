@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { TriangleAlert } from "lucide-react";
+import { BellRing, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { checkInChild, checkOutChild } from "@/lib/actions/infantil";
+import { chamarResponsavel, checkInChild, checkOutChild } from "@/lib/actions/infantil";
 
 export type Guardian = { id: string; name: string; canPickup: boolean; relationship: string | null };
 export type SessionChild = {
@@ -127,14 +127,41 @@ export function SessionChildRow({
       {child.checkin && !child.checkin.checkedOut && (
         <div className="space-y-2">
           {!retirando ? (
-            <Button
-              variant="outline"
-              disabled={pending}
-              onClick={() => setRetirando(true)}
-              className="h-10 w-full rounded-full"
-            >
-              Registrar retirada
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() =>
+                  startTransition(async () => {
+                    const r = await chamarResponsavel({
+                      churchSlug,
+                      churchId,
+                      ministryId,
+                      eventId,
+                      checkinId: child.checkin!.id,
+                      reason: "",
+                    });
+                    if (r.ok)
+                      toast.success(
+                        `Responsável chamado — código ${child.checkin!.code}`
+                      );
+                    else toast.error(r.error);
+                  })
+                }
+                className="h-10 flex-1 rounded-full"
+              >
+                <BellRing className="size-4" />
+                Chamar
+              </Button>
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => setRetirando(true)}
+                className="h-10 flex-1 rounded-full"
+              >
+                Registrar retirada
+              </Button>
+            </div>
           ) : (
             <div className="space-y-2 rounded-2xl bg-muted/40 p-3">
               <p className="text-xs font-medium">Quem está retirando?</p>

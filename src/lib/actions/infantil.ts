@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { notifyUsers } from "@/lib/push/notify";
 import type { ActionResult } from "./types";
 
 const childSchema = z.object({
@@ -212,6 +213,122 @@ export async function checkOutChild(raw: unknown): Promise<ActionResult> {
     return { ok: false, error: "Não foi possível registrar a retirada" };
   }
   revalidatePath(`/${d.churchSlug}/infantil/sessao/${d.eventId}`);
+  return { ok: true, data: undefined };
+}
+
+const pageSchema = z.object({
+  churchSlug: z.string().min(2),
+  churchId: z.string().uuid(),
+  ministryId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  checkinId: z.string().uuid(),
+  reason: z.string().max(200).default(""),
+});
+
+/**
+ * Chama o responsável de UMA criança: registra a chamada (vira anúncio pelo
+ * código) e manda Web Push a quem tem conta. O anúncio nunca cita a criança.
+ */
+export async function chamarResponsavel(raw: unknown): Promise<ActionResult> {
+  const parsed = pageSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Dados inválidos" };
+  const d = parsed.data;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: checkin } = await supabase
+    .from("child_checkins")
+    .select("code, child_id, children!inner(full_name)")
+    .eq("id", d.checkinId)
+    .single();
+  if (!checkin) return { ok: false, error: "Presença não encontrada" };
+
+  const { error } = await supabase.from("child_pages").insert({
+    church_id: d.churchId,
+    ministry_id: d.ministryId,
+    event_id: d.eventId,
+    checkin_id: d.checkinId,
+    kind: "chamar",
+    reason: d.reason || null,
+    created_by: user?.id ?? null,
+  });
+  if (error) return { ok: false, error: "Não foi possível chamar" };
+
+  // push para os responsáveis que têm conta no app
+  const { data: vinculos } = await supabase
+    .from("child_guardians")
+    .select("guardians!inner(user_id)")
+    .eq("child_id", checkin.child_id);
+  const alvos = (vinculos ?? [])
+    .map((v) => (v.guardians as unknown as { user_id: string | null }).user_id)
+    .filter((id): id is string => !!id);
+  const nome = (checkin.children as unknown as { full_name: string }).full_name;
+  await notifyUsers(alvos, {
+    title: "Chamado do Infantil 🔔",
+    body: `Compareça ao Infantil — ${nome} (código ${checkin.code})`,
+    url: `/${d.churchSlug}`,
+    tag: `infantil-${d.checkinId}`,
+  });
+
+  revalidatePath(`/${d.churchSlug}/infantil/sessao/${d.eventId}`);
+  revalidatePath(`/${d.churchSlug}`);
+  return { ok: true, data: undefined };
+}
+
+const fimSchema = z.object({
+  churchSlug: z.string().min(2),
+  churchId: z.string().uuid(),
+  ministryId: z.string().uuid(),
+  eventId: z.string().uuid(),
+});
+
+/** Fim da escolinha: avisa os responsáveis de TODAS as crianças presentes. */
+export async function encerrarSessao(raw: unknown): Promise<ActionResult> {
+  const parsed = fimSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Dados inválidos" };
+  const d = parsed.data;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: presentes } = await supabase
+    .from("child_checkins")
+    .select("child_id")
+    .eq("event_id", d.eventId)
+    .is("checked_out_at", null);
+  if (!presentes || presentes.length === 0) {
+    return { ok: false, error: "Nenhuma criança presente nesta sessão" };
+  }
+
+  const { error } = await supabase.from("child_pages").insert({
+    church_id: d.churchId,
+    ministry_id: d.ministryId,
+    event_id: d.eventId,
+    checkin_id: null,
+    kind: "fim_sessao",
+    created_by: user?.id ?? null,
+  });
+  if (error) return { ok: false, error: "Não foi possível encerrar a sessão" };
+
+  const { data: vinculos } = await supabase
+    .from("child_guardians")
+    .select("guardians!inner(user_id)")
+    .in("child_id", presentes.map((p) => p.child_id));
+  const alvos = (vinculos ?? [])
+    .map((v) => (v.guardians as unknown as { user_id: string | null }).user_id)
+    .filter((id): id is string => !!id);
+  await notifyUsers(alvos, {
+    title: "A escolinha terminou 🙌",
+    body: "Os responsáveis já podem buscar as crianças no Infantil.",
+    url: `/${d.churchSlug}`,
+    tag: `infantil-fim-${d.eventId}`,
+  });
+
+  revalidatePath(`/${d.churchSlug}/infantil/sessao/${d.eventId}`);
+  revalidatePath(`/${d.churchSlug}`);
   return { ok: true, data: undefined };
 }
 

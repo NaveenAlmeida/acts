@@ -4,6 +4,7 @@ import {
   Baby,
   BarChart3,
   BookOpen,
+  Megaphone,
   ChevronRight,
   Settings,
   ShieldCheck,
@@ -53,6 +54,11 @@ export default async function HomePage({
     .order("starts_at", { ascending: true, referencedTable: "events" })
     .limit(3);
 
+  // Anúncio do Infantil: a igreja inteira vê o CÓDIGO chamado, nunca a criança.
+  const { data: anuncios } = await supabase.rpc("anuncios_infantil", {
+    p_church: tenant.church.id,
+  });
+
   const escalas = myEscalas ?? [];
   const upcomingCount = escalas.length;
   const isAdmin = tenant.role === "admin";
@@ -75,6 +81,33 @@ export default async function HomePage({
             : "Nenhuma escala agendada por enquanto"}
         </p>
       </header>
+
+      {(anuncios ?? []).length > 0 && (
+        <section className="space-y-2">
+          {(anuncios as { code: string | null; kind: string }[]).map((a, i) => (
+            <div
+              key={`${a.code ?? "fim"}-${i}`}
+              className="flex items-center gap-3 rounded-3xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900"
+            >
+              <Megaphone className="size-5 shrink-0" />
+              {a.kind === "fim_sessao" ? (
+                <p className="text-sm font-medium">
+                  A escolinha terminou — responsáveis podem buscar as crianças
+                  no Infantil.
+                </p>
+              ) : (
+                <p className="text-sm font-medium">
+                  Infantil chama o código{" "}
+                  <span className="font-mono text-base font-bold">
+                    {a.code}
+                  </span>{" "}
+                  — comparecer à sala.
+                </p>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
 
       {isPlatformAdmin && (
         <Link href="/painel" className="block active:scale-[0.99] transition-transform">

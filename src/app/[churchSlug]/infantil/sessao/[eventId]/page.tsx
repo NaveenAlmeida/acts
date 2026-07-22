@@ -15,6 +15,7 @@ import {
   type Guardian,
   type SessionChild,
 } from "@/components/infantil/session-child";
+import { EndSessionButton } from "@/components/infantil/end-session-button";
 
 export default async function SessaoInfantilPage({
   params,
@@ -118,6 +119,14 @@ export default async function SessaoInfantilPage({
           {presentes} {presentes === 1 ? "criança presente" : "crianças presentes"}
         </p>
       </div>
+
+      <EndSessionButton
+        churchSlug={churchSlug}
+        churchId={tenant.church.id}
+        ministryId={ministry.id}
+        eventId={eventId}
+        presentes={presentes}
+      />
 
       {[...porTurma.entries()].map(([turma, itens]) => (
         <Card key={turma} className="rounded-3xl">
