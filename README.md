@@ -66,10 +66,19 @@ each ministry as a branch of the same system.
 - **Assets / equipment** — inventory, usage history, maintenance and tickets.
 - **People & ministries** — profiles, roles, skills and departments.
 - **Post-service reviews** — structured feedback by criteria.
+- **Worship setlist** — the leader builds the running order from the church's song
+  library (lyrics, key, BPM) and sets the key **for that service**. Publishing
+  notifies everyone assigned and hands the media team the list as plain text for
+  their projection software. Drafts stay invisible until published, so rearranging
+  on a Thursday night doesn't notify anyone. Each song shows **when it was last
+  sung**, so nothing gets overplayed or lost for six months.
 - **Children's ministry check-in** — child records with recorded parental consent,
   age-based classes, allergies surfaced where volunteers need them, and pickup
   restricted to **authorized guardians** — enforced by a database trigger, with
   exceptions requiring a leader and a logged justification.
+- **Data export** — anyone can download their own data; coordinators can export the
+  whole church as JSON. The export runs under the user's own session, so Row Level
+  Security bounds the file automatically.
 - **Ministry scoping** — each ministry is a walled space (schedules, equipment,
   reviews). A service is one shared event; each ministry builds its own rota.
   Church coordinators get the consolidated view.
@@ -159,10 +168,18 @@ voluntário aparecer**.
 - **Aptidões, interesses e treinamento** — cruza *quem quer* servir com *quem já é apto*,
   gerando a fila de **"quem quer crescer"**.
 - **Patrimônio / equipamentos** — inventário, histórico, manutenções e chamados.
+- **Repertório de louvor** — o líder monta a sequência do culto a partir do acervo da
+  igreja (letra, tom, BPM) e define o tom **daquele domingo**. Ao publicar, avisa
+  quem está escalado e entrega à mídia a lista em texto para montar a projeção
+  (Holyrics e afins). Em rascunho ninguém vê, então arrumar a ordem na quinta à
+  noite não notifica ninguém. Cada música mostra **há quanto tempo não é cantada**.
 - **Infantil (check-in)** — ficha da criança com consentimento registrado, turmas
   por faixa etária, alergia em destaque para o voluntário, e **retirada só por
   responsável autorizado** — bloqueada no banco; exceção exige liderança e
   justificativa gravada.
+- **Exportação de dados** — cada pessoa baixa os próprios dados; a coordenação exporta
+  a igreja inteira em JSON. A consulta roda com a sessão do usuário, então a RLS
+  delimita o arquivo sozinha.
 - **Escopo por setor** — cada ministério é um espaço isolado (escala, equipamentos,
   avaliações). O culto é um evento compartilhado e cada setor monta a sua escala;
   a coordenação enxerga o todo.
