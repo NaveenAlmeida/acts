@@ -1,0 +1,48 @@
+name: CI
+
+# Roda em todo push na main e em toda PR. Como o projeto é open source, isto
+# também é o que valida contribuição de gente de fora antes de virar merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    name: Typecheck + testes (RLS e unitários)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # npm install (não `ci`): o lockfile é gerado no Windows e não traz as
+      # dependências opcionais de plataforma Linux.
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Os testes de RLS precisam de um Postgres real com as policies
+      # aplicadas — é o único jeito de provar isolamento de verdade.
+      - name: Subir Supabase local
+        run: supabase start
+
+      - name: Rodar a suíte
+        run: |
+          eval "$(supabase status -o env)"
+          export API_URL ANON_KEY SERVICE_ROLE_KEY
+          npx vitest run
+
+      - name: Encerrar Supabase
+        if: always()
+        run: supabase stop || true
