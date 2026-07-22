@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
 import { signOut } from "@/lib/actions/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -91,6 +91,26 @@ export default async function PerfilPage({
           </CardContent>
         </Card>
       </Link>
+
+      <Card className="rounded-3xl">
+        <CardContent className="space-y-3 py-4">
+          <div>
+            <p className="font-medium">Meus dados</p>
+            <p className="text-sm text-muted-foreground">
+              Baixe tudo o que a igreja guarda sobre você, em arquivo aberto.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            className="h-11 w-full rounded-full"
+            render={<a href={`/${churchSlug}/exportar/pessoal`} download />}
+          >
+            <Download className="size-4" />
+            Baixar meus dados
+          </Button>
+        </CardContent>
+      </Card>
 
       <form action={signOut}>
         <Button variant="outline" className="h-12 w-full rounded-full">

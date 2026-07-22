@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -165,6 +166,28 @@ export default async function AdminPage({
               Ninguém com interesse pendente de capacitação por enquanto.
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">Dados da igreja</CardTitle>
+          <CardDescription>
+            Baixe tudo em arquivo aberto (JSON) — os dados são da igreja, não
+            nossos. Contém informação pessoal e pode conter dados de menores:
+            guarde com cuidado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            className="h-11 rounded-full"
+            render={<a href={`/${churchSlug}/exportar/igreja`} download />}
+          >
+            <Download className="size-4" />
+            Exportar dados da igreja
+          </Button>
         </CardContent>
       </Card>
 

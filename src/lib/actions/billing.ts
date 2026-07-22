@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { proximoVencimento } from "@/lib/billing";
 import type { ActionResult } from "./types";
 
 const claimSchema = z.object({
@@ -45,13 +46,7 @@ export async function confirmPayment(churchId: string, meses = 1): Promise<Actio
     .eq("id", churchId)
     .single();
 
-  const hoje = new Date();
-  const base =
-    church?.paid_until && new Date(church.paid_until + "T12:00:00") > hoje
-      ? new Date(church.paid_until + "T12:00:00")
-      : hoje;
-  base.setMonth(base.getMonth() + meses);
-  const novo = base.toISOString().slice(0, 10);
+  const novo = proximoVencimento(church?.paid_until ?? null, meses);
 
   const { error } = await supabase
     .from("churches")
