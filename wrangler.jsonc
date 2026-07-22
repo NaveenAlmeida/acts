@@ -23,6 +23,10 @@
   ],
   // 12:00 UTC = 09:00 em Brasília. Os lembretes são de véspera, então o
   // horário só precisa cair de manhã, com o dia inteiro para reagir.
+  // O subdomínio workers.dev existe só porque a Cloudflare o exige para
+  // aceitar Cron Triggers. O app NÃO deve ficar acessível por ele — só pelo
+  // domínio próprio.
+  "workers_dev": false,
   "triggers": {
     "crons": ["0 12 * * *"]
   },
