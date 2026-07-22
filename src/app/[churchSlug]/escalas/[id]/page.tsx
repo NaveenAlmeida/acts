@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { getTenant } from "@/lib/tenant";
+import { type SetlistItem, type Song } from "@/lib/louvor";
+import { getLouvorMinistry } from "@/lib/louvor-server";
+import { SetlistCard } from "@/components/louvor/setlist-card";
+import { AddToSetlist } from "@/components/louvor/add-to-setlist";
 import { getActiveMinistry } from "@/lib/ministry";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -59,6 +63,60 @@ export default async function EventoDetailPage({
   ]);
 
   if (!event) notFound();
+
+  // Repertório: a RLS decide o que aparece. Em rascunho volta vazio para quem
+  // não é do louvor, então não é preciso checar o status aqui.
+  const louvor = await getLouvorMinistry(tenant.church.id);
+  const podeEditarRepertorio =
+    !!louvor &&
+    (tenant.isCoord ||
+      (await supabase
+        .from("ministry_members")
+        .select("id")
+        .eq("ministry_id", louvor.id)
+        .eq("user_id", tenant.userId)
+        .eq("active", true)
+        .in("role", ["gerente", "lider"])
+        .maybeSingle()
+      ).data !== null);
+
+  const { data: setlist } = await supabase
+    .from("setlist_items")
+    .select(
+      "id, position, key_override, notes, songs(id, title, artist, default_key, bpm, lyrics, link, active)"
+    )
+    .eq("event_id", id)
+    .order("position");
+  const itensRepertorio = (setlist ?? []) as unknown as SetlistItem[];
+
+  // O acervo e o histórico só interessam a quem monta a sequência.
+  let acervo: (Song & { ultimaVez: string | null })[] = [];
+  if (podeEditarRepertorio) {
+    const [{ data: songs }, { data: historico }] = await Promise.all([
+      supabase
+        .from("songs")
+        .select("id, title, artist, default_key, bpm, lyrics, link, active")
+        .eq("church_id", tenant.church.id)
+        .eq("active", true)
+        .order("title"),
+      // "cantada há quanto tempo": derivado dos repertórios passados
+      supabase
+        .from("setlist_items")
+        .select("song_id, events!inner(starts_at)")
+        .eq("church_id", tenant.church.id)
+        .lte("events.starts_at", new Date().toISOString()),
+    ]);
+    const ultima = new Map<string, string>();
+    for (const h of historico ?? []) {
+      const quando = (h.events as unknown as { starts_at: string }).starts_at;
+      const atual = ultima.get(h.song_id);
+      if (!atual || quando > atual) ultima.set(h.song_id, quando);
+    }
+    acervo = (songs ?? []).map((s) => ({
+      ...s,
+      ultimaVez: ultima.get(s.id) ?? null,
+    }));
+  }
 
   // vínculos de equipamento SÓ deste evento (antes puxava todos da igreja)
   const assignmentIds = (assignments ?? []).map((a) => a.id);
@@ -295,6 +353,35 @@ export default async function EventoDetailPage({
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">{event.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <SetlistCard
+        churchSlug={churchSlug}
+        eventId={id}
+        itens={itensRepertorio}
+        publicado={event.setlist_status === "publicado"}
+        publicadoEm={event.setlist_published_at}
+        podeEditar={podeEditarRepertorio}
+      />
+
+      {podeEditarRepertorio && (
+        <Card className="rounded-3xl">
+          <CardHeader>
+            <CardTitle className="text-base">Escolher músicas</CardTitle>
+            <CardDescription>
+              Do acervo da igreja, na ordem em que vão ser cantadas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AddToSetlist
+              churchSlug={churchSlug}
+              churchId={tenant.church.id}
+              eventId={id}
+              acervo={acervo}
+              jaEscolhidas={itensRepertorio.map((i) => i.songs.id)}
+            />
           </CardContent>
         </Card>
       )}

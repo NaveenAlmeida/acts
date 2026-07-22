@@ -5,6 +5,7 @@ import {
   BarChart3,
   BookOpen,
   Megaphone,
+  Music,
   ChevronRight,
   Settings,
   ShieldCheck,
@@ -42,6 +43,10 @@ export default async function HomePage({
   const { options: meusSetores } = await getActiveMinistry(churchSlug);
   const temInfantil = meusSetores.some(
     (m) => m.slug === "infantil" || /infantil/i.test(m.name)
+  );
+  // acervo de músicas: quem é do louvor cadastra, os outros consultam
+  const temLouvor = meusSetores.some(
+    (m) => m.slug === "louvor" || /louvor/i.test(m.name)
   );
 
   const supabase = await createClient();
@@ -216,6 +221,14 @@ export default async function HomePage({
                   icon={<BarChart3 className="size-5" />}
                   title="Distribuição de escalas"
                   description="Quem está sobrecarregado ou de fora"
+                />
+              )}
+              {temLouvor && (
+                <NavRow
+                  href={`/${churchSlug}/louvor`}
+                  icon={<Music className="size-5" />}
+                  title="Louvor"
+                  description="Acervo de músicas, letras e tons"
                 />
               )}
               {temInfantil && (
