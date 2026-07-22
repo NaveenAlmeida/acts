@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "main": ".open-next/worker.js",
+  // entry próprio: reexporta o fetch do OpenNext e acrescenta o `scheduled`
+  "main": "worker.js",
   "name": "acts",
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -20,6 +21,11 @@
       "service": "acts"
     }
   ],
+  // 12:00 UTC = 09:00 em Brasília. Os lembretes são de véspera, então o
+  // horário só precisa cair de manhã, com o dia inteiro para reagir.
+  "triggers": {
+    "crons": ["0 12 * * *"]
+  },
   "observability": {
     "enabled": true
   }
