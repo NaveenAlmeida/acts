@@ -93,6 +93,30 @@ describe("Sustentação — faturamento e freio de cadastro (migration 24)", () 
     expect(String(error?.message)).toContain("church_limit_reached");
   });
 
+  // Observabilidade: registrar precisa funcionar até deslogado (o erro pode
+  // acontecer no login). Ler, não — mensagem de erro revela detalhe interno.
+  it("erro é registrável por qualquer um, mas só a plataforma lê", async () => {
+    const anon = createClient(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const ins = await anon.from("error_logs").insert({
+      message: `falha de teste ${run}`,
+      path: "/login",
+    });
+    expect(ins.error).toBeNull(); // deslogado consegue registrar
+
+    // usuário comum não lê
+    const comum = await dono.from("error_logs").select("id").limit(5);
+    expect(comum.data ?? []).toEqual([]);
+
+    // a plataforma lê
+    const plat = await plataforma
+      .from("error_logs")
+      .select("id, message")
+      .eq("message", `falha de teste ${run}`);
+    expect((plat.data ?? []).length).toBe(1);
+  });
+
   it("'já paguei': a igreja registra e só ela (e a plataforma) enxerga", async () => {
     const donoId = (await dono.auth.getUser()).data.user!.id;
     const ins = await dono.from("billing_claims").insert({

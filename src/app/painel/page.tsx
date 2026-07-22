@@ -57,6 +57,15 @@ export default async function PainelPage() {
     .gte("created_at", desde);
   const avisaram = new Set((claims ?? []).map((c) => c.church_id));
 
+  // saúde: erros de produção das últimas 48h (o resto fica no Cloudflare)
+  const desde48h = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  const { data: erros } = await supabase
+    .from("error_logs")
+    .select("id, message, path, church_id, created_at")
+    .gte("created_at", desde48h)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
   const churchList = churches ?? [];
   const totalPatrimonio = (equipments ?? []).reduce(
     (s, e) => s + (e.value_cents ?? 0),
@@ -150,6 +159,40 @@ export default async function PainelPage() {
               </p>
               <NovaIgreja />
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl">
+        <CardHeader>
+          <CardTitle className="text-base">
+            Saúde do sistema
+            {(erros ?? []).length > 0 && (
+              <span className="ml-2 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                {(erros ?? []).length} erro
+                {(erros ?? []).length === 1 ? "" : "s"} em 48h
+              </span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(erros ?? []).map((e) => (
+            <div key={e.id} className="rounded-2xl border px-4 py-3">
+              <p className="break-words text-sm font-medium">{e.message}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {e.path ?? "—"}
+                {e.church_id && churchName.get(e.church_id)
+                  ? ` · ${churchName.get(e.church_id)}`
+                  : ""}{" "}
+                · {new Date(e.created_at).toLocaleString("pt-BR")}
+              </p>
+            </div>
+          ))}
+          {(erros ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum erro nas últimas 48 horas. Logs detalhados ficam no painel
+              do Cloudflare.
+            </p>
           )}
         </CardContent>
       </Card>

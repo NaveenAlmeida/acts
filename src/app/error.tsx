@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/actions/observability";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,13 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error(error);
+    // persiste para a plataforma enxergar (best-effort, nunca lança)
+    void reportError({
+      message: error.message,
+      digest: error.digest,
+      stack: error.stack,
+      path: typeof window !== "undefined" ? window.location.pathname : undefined,
+    });
   }, [error]);
 
   return (

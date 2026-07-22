@@ -206,15 +206,26 @@ function Landing() {
             <Smartphone className="size-4" />
             Funciona como app no celular (PWA)
           </p>
-          <p>
-            Código aberto ·{" "}
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <Link
+              href="/termos"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Termos
+            </Link>
+            <Link
+              href="/privacidade"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Privacidade
+            </Link>
             <a
               href="https://github.com/faladigo/acts"
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-4 hover:text-foreground"
             >
-              GitHub
+              Código aberto
             </a>
           </p>
         </div>
